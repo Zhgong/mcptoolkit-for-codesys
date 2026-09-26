@@ -691,8 +691,23 @@ class WatcherManager:
         except OSError:
             pass
 
-    def _build_command(self) -> list[str]:
+    def _build_command(self) -> str | list[str]:
         script_path = self._staged_watcher_script or self.watcher_script
+        if sys.platform == "win32":
+            parts = [
+                f'"{self.install.exe}"',
+                f'--profile="{self.install.profile_name()}"',
+            ]
+            if self.install.additional_folder:
+                parts.append(f'--additionalfolder="{self.install.additional_folder}"')
+            parts.extend([
+                f'--runscript="{script_path}"',
+                f'--scriptargs="{self.workdir}"',
+            ])
+            if not self.show_ide:
+                parts.append("--noUI")
+            return " ".join(parts)
+
         cmd: list[str] = [
             str(self.install.exe),
             f'--profile={self.install.profile_name()}',
@@ -751,7 +766,7 @@ class WatcherManager:
             await asyncio.sleep(1.0)
         self._prepare_workdir()
         cmd = self._build_command()
-        log.info("spawning watcher: %s", " ".join(cmd))
+        log.info("spawning watcher: %s", cmd if isinstance(cmd, str) else " ".join(cmd))
         proc = subprocess.Popen(
             cmd,
             stdout=subprocess.DEVNULL,

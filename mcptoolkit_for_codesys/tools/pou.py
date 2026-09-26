@@ -83,7 +83,7 @@ REGISTRY.register(ToolSpec(
             },
             "pou_type": {
                 "type": "string",
-                "enum": ["program", "function_block", "function"],
+                "enum": ["program", "function_block", "function", "interface"],
                 "default": "program",
             },
             "language": {
@@ -99,6 +99,47 @@ REGISTRY.register(ToolSpec(
         "additionalProperties": False,
     },
     handler=_validated("pou.create", "parent"),
+))
+
+
+REGISTRY.register(ToolSpec(
+    name="codesys.pou.create_interface",
+    description=(
+        "Create an IEC 61131-3 Interface object in the project tree. "
+        "Methods can subsequently be added to this interface using `codesys.pou.create_method`."
+    ),
+    input_schema={
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+            "name": {"type": "string", "description": "Interface name (e.g. 'I_FanAction')."},
+            "parent": {
+                "type": "string",
+                "description": "Parent path or folder name. Default: project root / active application.",
+            },
+            "base_interfaces": {
+                "type": "string",
+                "description": "Comma-separated base interfaces to extend (e.g. '__System.IQueryInterface').",
+            },
+            "declaration": {"type": "string", "description": "Optional textual declaration / pragma."},
+            "methods": {
+                "type": "array",
+                "description": "Optional list of methods to create on the interface.",
+                "items": {
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": {
+                        "name": {"type": "string"},
+                        "return_type": {"type": "string"},
+                        "declaration": {"type": "string"},
+                    },
+                },
+            },
+            **_proj_arg(),
+        },
+        "additionalProperties": False,
+    },
+    handler=_validated("pou.create_interface", "parent"),
 ))
 
 
@@ -256,8 +297,8 @@ REGISTRY.register(ToolSpec(
 REGISTRY.register(ToolSpec(
     name="codesys.pou.create_method",
     description=(
-        "Create a method on a Function Block. The parent must resolve to a "
-        "Function Block (methods only make sense on FBs). `return_type` is "
+        "Create a method on a Function Block or Interface. The parent must resolve to a "
+        "Function Block or Interface. `return_type` is "
         "the IEC type the method returns (e.g. 'BOOL', 'INT', 'REAL'); omit "
         "for a void method. Optionally set declaration/implementation in the "
         "same call."
@@ -269,7 +310,7 @@ REGISTRY.register(ToolSpec(
             "name": {"type": "string"},
             "parent": {
                 "type": "string",
-                "description": "Path or name resolving to a Function Block POU.",
+                "description": "Path or name resolving to a Function Block or Interface.",
             },
             "return_type": {
                 "type": "string",
