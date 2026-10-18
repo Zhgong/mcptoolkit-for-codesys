@@ -38,6 +38,10 @@ def op_create_pou(args):
     name = args.get("name")
     if not name:
         raise RuntimeError("pou.create: 'name' is required")
+    raw_pou_type = str(args.get("pou_type", "program")).strip().lower()
+    if raw_pou_type == "interface":
+        return op_create_interface(args)
+
     proj = h.resolve_project(args)
     parent = _resolve_parent(proj, args)
 
@@ -59,6 +63,46 @@ def op_create_pou(args):
         h.set_text_object_content(getattr(new_obj, "textual_implementation", None), implementation)
     summary["declaration_set"] = declaration is not None
     summary["implementation_set"] = implementation is not None
+    return summary
+
+
+@_registry.handler("pou.create_interface")
+def op_create_interface(args):
+    name = args.get("name")
+    if not name:
+        raise RuntimeError("pou.create_interface: 'name' is required")
+    proj = h.resolve_project(args)
+    parent = _resolve_parent(proj, args)
+
+    base_interfaces = args.get("base_interfaces")
+    if base_interfaces:
+        new_obj = parent.create_interface(name, base_interfaces)
+    else:
+        new_obj = parent.create_interface(name)
+
+    summary = _summarize(new_obj)
+    declaration = args.get("declaration")
+    if declaration is not None:
+        h.set_text_object_content(getattr(new_obj, "textual_declaration", None), declaration)
+        summary["declaration_set"] = True
+
+    methods = args.get("methods")
+    if methods and isinstance(methods, list):
+        created_methods = []
+        for m_item in methods:
+            if isinstance(m_item, dict) and "name" in m_item:
+                m_name = m_item["name"]
+                m_ret = m_item.get("return_type")
+                m_decl = m_item.get("declaration")
+                if m_ret:
+                    m_obj = new_obj.create_method(m_name, m_ret)
+                else:
+                    m_obj = new_obj.create_method(m_name)
+                if m_decl is not None:
+                    h.set_text_object_content(getattr(m_obj, "textual_declaration", None), m_decl)
+                created_methods.append(m_name)
+        summary["methods"] = created_methods
+
     return summary
 
 
